@@ -17,24 +17,22 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Create Android Web Wrapper Structure
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Create App Structure
         run: |
           mkdir -p android-app/app/src/main/assets/www
-          mkdir -p android-app/app/src/main/res/mipmap-hdpi
-          
-          # Copy your web app files
-          cp -r www/* android-app/app/src/main/assets/www/
+          cp index.html android-app/app/src/main/assets/www/
 
-          # Create AndroidManifest.xml
           cat << 'EOF' > android-app/app/src/main/AndroidManifest.xml
           <manifest xmlns:android="http://schemas.android.com/apk/res/android"
               package="com.zaid.player">
               <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+              <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
               <application
                   android:allowBackup="true"
-                  android:icon="@mipmap/ic_launcher"
                   android:label="Zaid Player"
-                  android:roundIcon="@mipmap/ic_launcher"
                   android:usesCleartextTraffic="true">
                   <activity
                       android:name=".MainActivity"
@@ -48,7 +46,6 @@ jobs:
           </manifest>
           EOF
 
-          # Create MainActivity.java
           mkdir -p android-app/app/src/main/java/com/zaid/player
           cat << 'EOF' > android-app/app/src/main/java/com/zaid/player/MainActivity.java
           package com.zaid.player;
@@ -75,7 +72,6 @@ jobs:
           }
           EOF
 
-          # Create build.gradle for the app
           cat << 'EOF' > android-app/app/build.gradle
           plugins {
               id 'com.android.application'
@@ -90,18 +86,12 @@ jobs:
                   versionCode 1
                   versionName "1.0"
               }
-              buildTypes {
-                release {
-                  minifyEnabled false
-                }
-              }
           }
           dependencies {
               implementation 'androidx.appcompat:appcompat:1.6.1'
           }
           EOF
 
-          # Create project-level build.gradle
           cat << 'EOF' > android-app/build.gradle
           buildscript {
               repositories {
@@ -120,28 +110,28 @@ jobs:
           }
           EOF
 
-          # Create settings.gradle
           cat << 'EOF' > android-app/settings.gradle
           rootProject.name = "ZaidPlayer"
           include ':app'
           EOF
 
-          # Create gradle.properties
           cat << 'EOF' > android-app/gradle.properties
           android.useAndroidX=true
           android.enableJetifier=true
+          org.gradle.jvmargs=-Xmx2048m
           EOF
 
-      - name: Build APK with Gradle
+      - name: Build APK
         run: |
           cd android-app
-          chmod +x gradlew || true
           gradle wrapper
-          ./gradlew assembleDebug
+          chmod +x gradlew
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          yes | sdkmanager --licenses || true
+          ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Zaid-Player
           path: android-app/app/build/outputs/apk/debug/app-debug.apk
-          
