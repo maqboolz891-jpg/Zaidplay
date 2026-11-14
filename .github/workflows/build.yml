@@ -17,10 +17,7 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Create App Structure
+      - name: Create App Structure & Gradle Project
         run: |
           mkdir -p android-app/app/src/main/assets/www
           cp index.html android-app/app/src/main/assets/www/
@@ -121,14 +118,12 @@ jobs:
           org.gradle.jvmargs=-Xmx2048m
           EOF
 
-      - name: Build APK
+      - name: Build APK with Gradle
         run: |
           cd android-app
           gradle wrapper
           chmod +x gradlew
-          echo "sdk.dir=$ANDROID_HOME" > local.properties
-          yes | sdkmanager --licenses || true
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
