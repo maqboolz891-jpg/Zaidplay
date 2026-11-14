@@ -17,7 +17,7 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Create App Structure & Gradle Project
+      - name: Generate Complete Gradle Project
         run: |
           mkdir -p android-app/app/src/main/assets/www
           cp index.html android-app/app/src/main/assets/www/
@@ -118,12 +118,38 @@ jobs:
           org.gradle.jvmargs=-Xmx2048m
           EOF
 
-      - name: Build APK with Compatible Gradle
+          mkdir -p android-app/gradle/wrapper
+          cat << 'EOF' > android-app/gradle/wrapper/gradle-wrapper.properties
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.1.1-bin.zip
+          systemProp.file.encoding=UTF-8
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EOF
+
+      - name: Build APK with Native Gradle 8.1.1
         run: |
           cd android-app
-          gradle wrapper --gradle-version 8.1.1
-          chmod +x gradlew
-          ./gradlew assembleDebug
+          gradle -version
+          # Download wrapper jar or use direct execution
+          python3 -c "
+          import urllib.request
+          url = 'https://raw.githubusercontent.com/gradle/gradle/v8.1.1/subprojects/wrapperfiles/gradle-wrapper.jar'
+          urllib.request.urlretrieve(url, 'gradle/wrapper/gradle-wrapper.jar')
+          "
+          javac -version
+          # Build using gradle runner directly pointing to 8.1.1 environment
+          mvn --version || true
+          # Direct invocation via SDK gradle
+          gradle --init-script <(echo \"allprojects { repositories { google(); mavenCentral() } }\") assembleDebug || ./gradlew assembleDebug || true
+          
+          # Fallback explicit build execution
+          mkdir -p app/build/outputs/apk/debug/
+          # Let's run gradle through a standalone gradle runner or direct assemble
+          find . -name gradlew
+          chmod +x gradlew || true
+          ./gradlew assembleDebug --no-daemon || gradle assembleDebug --no-daemon
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
