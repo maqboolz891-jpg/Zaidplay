@@ -96,7 +96,7 @@ jobs:
                   mavenCentral()
               }
               dependencies {
-                  classpath 'com.android.tools.build:gradle:8.1.0'
+                  classpath 'com.android.tools.build:gradle:8.1.1'
               }
           }
           allprojects {
@@ -118,10 +118,10 @@ jobs:
           org.gradle.jvmargs=-Xmx2048m
           EOF
 
-      - name: Build APK with Gradle
+      - name: Build APK with Compatible Gradle
         run: |
           cd android-app
-          gradle wrapper
+          gradle wrapper --gradle-version 8.1.1
           chmod +x gradlew
           ./gradlew assembleDebug
 
