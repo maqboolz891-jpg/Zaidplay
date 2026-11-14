@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Zaid Player</title>
+  <style>
+    :root {
+      --bg: #0b0d12;
+      --surface: #141821;
+      --surface-2: #1d2330;
+      --accent: #8b5cf6;
+      --accent-2: #ec4899;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --border: #262e3d;
+    }
+    body.theme-emerald { --accent: #10b981; --accent-2: #06b6d4; }
+    body.theme-gold { --accent: #f59e0b; --accent-2: #ef4444; }
+    body.theme-oled { --bg: #000000; --surface: #0a0a0a; --surface-2: #141414; --accent: #3b82f6; --accent-2: #6366f1; }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* HEADER */
+    .topbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; background: var(--surface); border-bottom: 1px solid var(--border); gap: 12px; }
+    .brand { font-size: 1.25rem; font-weight: 800; background: linear-gradient(90deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .icon-btn { background: none; border: none; color: var(--text); font-size: 1.4rem; cursor: pointer; padding: 6px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+    .icon-btn:active { background: var(--surface-2); }
+    .search-box { flex: 1; display: none; background: var(--surface-2); border: 1px solid var(--border); border-radius: 20px; padding: 6px 14px; color: var(--text); font-size: 0.9rem; outline: none; }
+    .search-box.active { display: block; }
+
+    /* TABS */
+    .tabs { display: flex; overflow-x: auto; background: var(--surface); border-bottom: 1px solid var(--border); scrollbar-width: none; padding: 0 10px; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab { padding: 12px 16px; font-size: 0.85rem; font-weight: 600; color: var(--muted); white-space: nowrap; border-bottom: 2px solid transparent; cursor: pointer; }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* CONTENT */
+    .content { flex: 1; overflow-y: auto; padding: 16px; padding-bottom: 110px; }
+
+    /* HERO CARD */
+    .hero-card { background: linear-gradient(135deg, rgba(139,92,246,0.2), rgba(236,72,153,0.15)); border: 1px solid var(--accent); border-radius: 18px; padding: 20px; margin-bottom: 18px; }
+    .hero-card h3 { font-size: 1.05rem; margin-bottom: 6px; }
+    .hero-card p { font-size: 0.82rem; color: var(--muted); margin-bottom: 14px; line-height: 1.4; }
+    .btn-primary { background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: #fff; border: none; padding: 11px 18px; border-radius: 14px; font-weight: 700; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 15px rgba(139,92,246,0.3); }
+    .btn-secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); padding: 10px 14px; border-radius: 14px; font-weight: 600; font-size: 0.85rem; cursor: pointer; }
+
+    /* GRID TILES */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; }
+    .tile { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px; cursor: pointer; }
+    .tile:active { transform: scale(0.98); }
+    .tile-icon { font-size: 1.5rem; margin-bottom: 8px; }
+    .tile-title { font-weight: 700; font-size: 0.92rem; }
+    .tile-sub { font-size: 0.74rem; color: var(--muted); margin-top: 2px; }
+
+    /* SONG LIST */
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .section-title { font-size: 0.78rem; font-weight: 700; color: var(--muted); letter-spacing: 0.5px; }
+    .song-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-radius: 14px; margin-bottom: 8px; background: var(--surface); border: 1px solid transparent; cursor: pointer; }
+    .song-item.playing { border-color: var(--accent); background: var(--surface-2); }
+    .song-art { width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; margin-right: 12px; }
+    .song-meta { flex: 1; min-width: 0; }
+    .song-title { font-size: 0.92rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .song-artist { font-size: 0.76rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+    .song-actions { display: flex; align-items: center; gap: 4px; }
+
+    /* MINI PLAYER */
+    .mini-player { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface-2); border-top: 1px solid var(--border); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; z-index: 20; box-shadow: 0 -4px 20px rgba(0,0,0,0.5); }
+    .mini-info { flex: 1; min-width: 0; margin-right: 12px; cursor: pointer; }
+    .mini-controls { display: flex; align-items: center; gap: 8px; }
+    .play-circle { width: 44px; height: 44px; border-radius: 50%; background: var(--accent); color: #fff; border: none; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+
+    /* MODALS */
+    .modal { position: fixed; inset: 0; background: var(--bg); z-index: 50; display: none; flex-direction: column; padding: 20px; overflow-y: auto; }
+    .modal.open { display: flex; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .big-art { width: 220px; height: 220px; margin: 10px auto 24px auto; border-radius: 30px; background: linear-gradient(135deg, var(--accent), var(--accent-2)); display: flex; align-items: center; justify-content: center; font-size: 4.5rem; box-shadow: 0 16px 40px rgba(0,0,0,0.6); }
+    .seek-wrap { margin: 16px 0; }
+    input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+    .time-row { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--muted); margin-top: 6px; }
+    .full-controls { display: flex; align-items: center; justify-content: space-around; margin: 24px 0; }
+    .big-play { width: 68px; height: 68px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; border: none; font-size: 1.6rem; cursor: pointer; box-shadow: 0 8px 25px rgba(139,92,246,0.5); }
+
+    /* SIDE DRAWER */
+    .drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 40; display: none; }
+    .drawer-backdrop.open { display: block; }
+    .drawer { position: fixed; top: 0; bottom: 0; left: 0; width: 280px; background: var(--surface); z-index: 45; transform: translateX(-100%); transition: transform 0.25s ease; padding: 22px 16px; overflow-y: auto; border-right: 1px solid var(--border); }
+    .drawer.open { transform: translateX(0); }
+    .drawer-title { font-size: 1.25rem; font-weight: 800; margin-bottom: 20px; padding-left: 6px; }
+    .drawer-item { display: flex; align-items: center; gap: 14px; padding: 13px; border-radius: 12px; color: var(--text); font-size: 0.92rem; font-weight: 600; cursor: pointer; }
+    .drawer-item:active { background: var(--surface-2); }
+
+    /* EQUALIZER & CHIPS */
+    .eq-bands { display: flex; justify-content: space-between; gap: 10px; background: var(--surface); padding: 18px; border-radius: 16px; margin: 16px 0; border: 1px solid var(--border); }
+    .eq-col { display: flex; flex-direction: column; align-items: center; flex: 1; }
+    .eq-col input[type="range"] { writing-mode: bt-lr; -webkit-appearance: slider-vertical; width: 24px; height: 140px; }
+    .eq-label { font-size: 0.7rem; color: var(--muted); margin-top: 10px; }
+    .chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    .chip { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 7px 14px; border-radius: 20px; font-size: 0.82rem; cursor: pointer; font-weight: 600; }
+    .chip.active { border-color: var(--accent); background: var(--accent); color: #fff; }
+    .group-item { display: flex; align-items: center; justify-content: space-between; background: var(--surface); padding: 14px; border-radius: 14px; margin-bottom: 8px; border: 1px solid var(--border); cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <button class="icon-btn" onclick="toggleDrawer(true)">☰</button>
+    <div class="brand" id="brandTitle">Zaid Player</div>
+    <input type="text" class="search-box" id="searchInput" placeholder="Search songs..." oninput="handleSearch(this.value)" />
+    <button class="icon-btn" onclick="toggleSearch()">🔍</button>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('home', this)">Home</div>
+    <div class="tab" onclick="switchTab('songs', this)">Songs</div>
+    <div class="tab" onclick="switchTab('playlists', this)">Playlists</div>
+    <div class="tab" onclick="switchTab('favorites', this)">Favorites</div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content" id="appContent"></div>
+
+  <!-- MINI PLAYER -->
+  <div class="mini-player">
+    <div class="song-art" onclick="openFullPlayer()">🎵</div>
+    <div class="mini-info" onclick="openFullPlayer()">
+      <div class="song-title" id="miniTitle">No track selected</div>
+      <div class="song-artist" id="miniArtist">Tap Import Songs</div>
+    </div>
+    <div class="mini-controls">
+      <button class="icon-btn" onclick="prevSong()">⏮</button>
+      <button class="play-circle" id="miniPlayBtn" onclick="togglePlay()">▶</button>
+      <button class="icon-btn" onclick="nextSong()">⏭</button>
+    </div>
+  </div>
+
+  <!-- SIDE DRAWER -->
+  <div class="drawer-backdrop" id="drawerBackdrop" onclick="toggleDrawer(false)"></div>
+  <div class="drawer" id="sideDrawer">
+    <div class="drawer-title">Zaid Player Settings</div>
+    <div class="drawer-item" onclick="toggleDrawer(false); document.getElementById('fileInput').click();">📁 Import Audio Files</div>
+    <div class="drawer-item" onclick="toggleDrawer(false); openModal('eqModal');">🎚️ 5-Band Equalizer & Booster</div>
+    <div class="drawer-item" onclick="toggleDrawer(false); openModal('themeModal');">🎨 App Themes</div>
+    <div class="drawer-item" onclick="toggleDrawer(false); openModal('sleepModal');">⏲️ Sleep Timer <span id="sleepBadge" style="font-size:0.75rem;color:var(--accent);margin-left:auto;"></span></div>
+  </div>
+
+  <!-- FULL NOW PLAYING MODAL -->
+  <div class="modal" id="fullPlayerModal">
+    <div class="modal-header">
+      <button class="icon-btn" onclick="closeModal('fullPlayerModal')">⌄</button>
+      <span style="font-weight:700;font-size:0.85rem;letter-spacing:1px;">NOW PLAYING</span>
+      <button class="icon-btn" onclick="openModal('eqModal')">🎚️</button>
+    </div>
+    <div class="big-art">🎶</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div style="min-width:0;flex:1;">
+        <h2 id="fullTitle" style="font-size:1.3rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">No Track</h2>
+        <p id="fullArtist" style="color:var(--muted);font-size:0.9rem;margin-top:4px;">Zaid Player Audio</p>
+      </div>
+      <button class="icon-btn" id="favBtn" onclick="toggleFavoriteCurrent()" style="font-size:1.6rem;">🤍</button>
+    </div>
+    <div class="seek-wrap">
+      <input type="range" id="seekBar" value="0" min="0" max="100" oninput="seekAudio(this.value)" />
+      <div class="time-row"><span id="curTime">0:00</span><span id="durTime">0:00</span></div>
+    </div>
+    <div class="full-controls">
+      <button class="icon-btn" id="shuffleBtn" onclick="toggleShuffle()" style="font-size:1.3rem;">🔀</button>
+      <button class="icon-btn" style="font-size:1.7rem;" onclick="prevSong()">⏮</button>
+      <button class="big-play" id="fullPlayBtn" onclick="togglePlay()">▶</button>
+      <button class="icon-btn" style="font-size:1.7rem;" onclick="nextSong()">⏭</button>
+      <button class="icon-btn" id="repeatBtn" onclick="cycleRepeat()" style="font-size:1.3rem;">🔁</button>
+    </div>
+  </div>
+
+  <!-- EQUALIZER MODAL -->
+  <div class="modal" id="eqModal">
+    <div class="modal-header">
+      <button class="icon-btn" onclick="closeModal('eqModal')">←</button>
+      <span style="font-weight:700;">Equalizer & Preamp</span>
+      <button class="btn-secondary" style="padding:6px 12px;font-size:0.75rem;" onclick="applyEqPreset('flat')">Reset</button>
+    </div>
+    <div class="chip-row" id="eqPresets">
+      <button class="chip active" onclick="applyEqPreset('flat', this)">Flat</button>
+      <button class="chip" onclick="applyEqPreset('bass', this)">Bass Boost</button>
+      <button class="chip" onclick="applyEqPreset('rock', this)">Rock</button>
+      <button class="chip" onclick="applyEqPreset('pop', this)">Pop</button>
+      <button class="chip" onclick="applyEqPreset('vocal', this)">Vocal</button>
+    </div>
+    <div class="eq-bands">
+      <div class="eq-col"><input type="range" min="-12" max="12" value="0" id="eq0" oninput="setBand(0, this.value)"><span class="eq-label">60Hz</span></div>
+      <div class="eq-col"><input type="range" min="-12" max="12" value="0" id="eq1" oninput="setBand(1, this.value)"><span class="eq-label">230Hz</span></div>
+      <div class="eq-col"><input type="range" min="-12" max="12" value="0" id="eq2" oninput="setBand(2, this.value)"><span class="eq-label">910Hz</span></div>
+      <div class="eq-col"><input type="range" min="-12" max="12" value="0" id="eq3" oninput="setBand(3, this.value)"><span class="eq-label">3.6kHz</span></div>
+      <div class="eq-col"><input type="range" min="-12" max="12" value="0" id="eq4" oninput="setBand(4, this.value)"><span class="eq-label">14kHz</span></div>
+    </div>
+    <div style="background:var(--surface);padding:16px;border-radius:16px;border:1px solid var(--border);margin-top:10px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+        <span style="font-weight:700;font-size:0.9rem;">🔊 Volume Booster / Preamp</span>
+        <span id="boostVal" style="color:var(--accent);font-weight:700;">100%</span>
+      </div>
+      <input type="range" min="100" max="200" value="100" oninput="setVolumeBoost(this.value)" />
+    </div>
+  </div>
+
+  <!-- THEME MODAL -->
+  <div class="modal" id="themeModal">
+    <div class="modal-header">
+      <button class="icon-btn" onclick="closeModal('themeModal')">←</button>
+      <span style="font-weight:700;">Choose Theme</span>
+      <span></span>
+    </div>
+    <div class="group-item" onclick="setTheme('')"><span>🟣 Midnight Purple (Default)</span><span>Select</span></div>
+    <div class="group-item" onclick="setTheme('theme-oled')"><span>⚫ Pure OLED Black</span><span>Select</span></div>
+    <div class="group-item" onclick="setTheme('theme-emerald')"><span>🟢 Emerald Cyber</span><span>Select</span></div>
+    <div class="group-item" onclick="setTheme('theme-gold')"><span>🟠 Sunset Gold</span><span>Select</span></div>
+  </div>
+
+  <!-- SLEEP TIMER MODAL -->
+  <div class="modal" id="sleepModal">
+    <div class="modal-header">
+      <button class="icon-btn" onclick="closeModal('sleepModal')">←</button>
+      <span style="font-weight:700;">Sleep Timer</span>
+      <span></span>
+    </div>
+    <div class="group-item" onclick="setSleepTimer(0)"><span>Off</span></div>
+    <div class="group-item" onclick="setSleepTimer(15)"><span>15 Minutes</span></div>
+    <div class="group-item" onclick="setSleepTimer(30)"><span>30 Minutes</span></div>
+    <div class="group-item" onclick="setSleepTimer(45)"><span>45 Minutes</span></div>
+    <div class="group-item" onclick="setSleepTimer(60)"><span>60 Minutes</span></div>
+  </div>
+
+  <input type="file" id="fileInput" accept="audio/*" multiple style="display:none;" onchange="handleFiles(this.files)" />
+  <audio id="audioEl" crossorigin="anonymous"></audio>
+
+  <script>
+    let songs = JSON.parse(localStorage.getItem('zp_songs')) || [];
+    let favorites = JSON.parse(localStorage.getItem('zp_favs')) || [];
+    let playlists = JSON.parse(localStorage.getItem('zp_playlists')) || { "My Chill Mix": [] };
+    let currentTab = 'home';
+    let currentIndex = -1;
+    let isShuffle = false;
+    let repeatMode = 0; // 0: off, 1: all, 2: one
+    let searchQuery = '';
+    let sleepTimeout = null;
+
+    const audio = document.getElementById('audioEl');
+
+    // Web Audio Equalizer Engine
+    let audioCtx, sourceNode, gainNode, filters = [];
+    const freqs = [60, 230, 910, 3600, 14000];
+
+    function initAudioEngine() {
+      if (audioCtx) {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        return;
+      }
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      sourceNode = audioCtx.createMediaElementSource(audio);
+      gainNode = audioCtx.createGain();
+
+      let prevNode = sourceNode;
+      freqs.forEach((f, i) => {
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = i === 0 ? 'lowshelf' : (i === freqs.length - 1 ? 'highshelf' : 'peaking');
+        filter.frequency.value = f;
+        filter.Q.value = 1;
+        filter.gain.value = 0;
+        prevNode.connect(filter);
+        prevNode = filter;
+        filters.push(filter);
+      });
+
+      prevNode.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+    }
+
+    function setBand(idx, val) {
+      initAudioEngine();
+      if (filters[idx]) filters[idx].gain.value = parseFloat(val);
+    }
+
+    function applyEqPreset(name, btn) {
+      const map = {
+        flat: [0, 0, 0, 0, 0],
+        bass: [8, 5, 0, 0, 2],
+        rock: [5, 3, -2, 4, 6],
+        pop: [-1, 3, 5, 3, -1],
+        vocal: [-2, 1, 5, 4, 1]
+      };
+      const vals = map[name] || [0,0,0,0,0];
+      vals.forEach((v, i) => {
+        document.getElementById('eq' + i).value = v;
+        setBand(i, v);
+      });
+      if (btn) {
+        document.querySelectorAll('#eqPresets .chip').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+      }
+    }
+
+    function setVolumeBoost(val) {
+      initAudioEngine();
+      document.getElementById('boostVal').textContent = val + '%';
+      if (gainNode) gainNode.gain.value = val / 100;
+    }
+
+    // File Management
+    function handleFiles(fileList) {
+      const added = Array.from(fileList).map(f => ({
+        id: f.name + '_' + f.size,
+        title: f.name.replace(/\.[^/.]+$/, ""),
+        artist: 'Zaid Player Library',
+        url: URL.createObjectURL(f)
+      }));
+      songs = [...songs, ...added];
+      localStorage.setItem('zp_songs', JSON.stringify(songs));
+      render();
+      if (currentIndex === -1 && songs.length > 0) playSong(0);
+    }
+
+    // Playback
+    function playSong(index) {
+      if (index < 0 || index >= songs.length) return;
+      initAudioEngine();
+      currentIndex = index;
+      const s = songs[index];
+      audio.src = s.url;
+      audio.play().catch(e => console.log(e));
+      updatePlayerUI();
+      render();
+    }
+
+    function togglePlay() {
+      if (songs.length === 0) { document.getElementById('fileInput').click(); return; }
+      if (currentIndex === -1) { playSong(0); return; }
+      initAudioEngine();
+      if (audio.paused) audio.play(); else audio.pause();
+      updatePlayerUI();
+    }
+
+    function nextSong() {
+      if (songs.length === 0) return;
+      if (isShuffle) {
+        playSong(Math.floor(Math.random() * songs.length));
+      } else {
+        playSong((currentIndex + 1) % songs.length);
+      }
+    }
+
+    function prevSong() {
+      if (songs.length === 0) return;
+      playSong((currentIndex - 1 + songs.length) % songs.length);
+    }
+
+    function shufflePlayAll() {
+      if (songs.length === 0) { document.getElementById('fileInput').click(); return; }
+      isShuffle = true;
+      playSong(Math.floor(Math.random() * songs.length));
+    }
+
+    audio.addEventListener('ended', () => {
+      if (repeatMode === 2) playSong(currentIndex);
+      else nextSong();
+    });
+
+    audio.addEventListener('timeupdate', () => {
+      if (!audio.duration) return;
+      document.getElementById('seekBar').value = (audio.currentTime / audio.duration) * 100;
+      document.getElementById('curTime').textContent = fmtTime(audio.currentTime);
+      document.getElementById('durTime').textContent = fmtTime(audio.duration);
+    });
+
+    function seekAudio(pct) {
+      if (audio.duration) audio.currentTime = (pct / 100) * audio.duration;
+    }
+
+    function fmtTime(sec) {
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60);
+      return `${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+
+    function updatePlayerUI() {
+      const s = songs[currentIndex];
+      const icon = audio.paused ? '▶' : '❚❚';
+      document.getElementById('miniPlayBtn').textContent = icon;
+      document.getElementById('fullPlayBtn').textContent = icon;
+      if (s) {
+        document.getElementById('miniTitle').textContent = s.title;
+        document.getElementById('miniArtist').textContent = s.artist;
+        document.getElementById('fullTitle').textContent = s.title;
+        document.getElementById('fullArtist').textContent = s.artist;
+        document.getElementById('favBtn').textContent = favorites.includes(s.id) ? '❤️' : '🤍';
+      }
+    }
+
+    // Favorites & Playlists
+    function toggleFavoriteCurrent() {
+      const s = songs[currentIndex];
+      if (!s) return;
+      if (favorites.includes(s.id)) favorites = favorites.filter(id => id !== s.id);
+      else favorites.push(s.id);
+      localStorage.setItem('zp_favs', JSON.stringify(favorites));
+      updatePlayerUI();
+    }
+
+    function createPlaylist() {
+      const name = prompt("Enter playlist name:");
+      if (name && name.trim()) {
+        playlists[name.trim()] = [];
+        localStorage.setItem('zp_playlists', JSON.stringify(playlists));
+        render();
+      }
+    }
+
+    function addToPlaylist(songId) {
+      const names = Object.keys(playlists);
+      if (names.length === 0) { alert("Create a playlist first!"); return; }
+      const choice = prompt("Add to playlist:\n" + names.join(", "), names[0]);
+      if (choice && playlists[choice]) {
+        if (!playlists[choice].includes(songId)) playlists[choice].push(songId);
+        localStorage.setItem('zp_playlists', JSON.stringify(playlists));
+        alert("Added!");
+      }
+    }
+
+    // Navigation & Modals
+    function switchTab(tab, el) {
+      currentTab = tab;
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      if (el) el.classList.add('active');
+      render();
+    }
+
+    function toggleDrawer(open) {
+      document.getElementById('sideDrawer').classList.toggle('open', open);
+      document.getElementById('drawerBackdrop').classList.toggle('open', open);
+    }
+
+    function openModal(id) { document.getElementById(id).classList.add('open'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+    function openFullPlayer() { openModal('fullPlayerModal'); }
+
+    function toggleSearch() {
+      const box = document.getElementById('searchInput');
+      const title = document.getElementById('brandTitle');
+      box.classList.toggle('active');
+      title.style.display = box.classList.contains('active') ? 'none' : 'block';
+      if (box.classList.contains('active')) box.focus();
+      else { searchQuery = ''; box.value = ''; render(); }
+    }
+
+    function handleSearch(q) { searchQuery = q.toLowerCase(); render(); }
+    function setTheme(cls) { document.body.className = cls; localStorage.setItem('zp_theme', cls); closeModal('themeModal'); }
+
+    function setSleepTimer(mins) {
+      clearTimeout(sleepTimeout);
+      if (mins > 0) {
+        document.getElementById('sleepBadge').textContent = mins + 'm';
+        sleepTimeout = setTimeout(() => { audio.pause(); updatePlayerUI(); }, mins * 60000);
+      } else {
+        document.getElementById('sleepBadge').textContent = '';
+      }
+      closeModal('sleepModal');
+    }
+
+    function toggleShuffle() {
+      isShuffle = !isShuffle;
+      document.getElementById('shuffleBtn').style.color = isShuffle ? 'var(--accent)' : 'var(--text)';
+    }
+
+    function cycleRepeat() {
+      repeatMode = (repeatMode + 1) % 3;
+      const btn = document.getElementById('repeatBtn');
+      btn.textContent = repeatMode === 2 ? '🔂' : '🔁';
+      btn.style.color = repeatMode > 0 ? 'var(--accent)' : 'var(--text)';
+    }
+
+    // Render Engine
+    function renderSongList(list) {
+      if (list.length === 0) return `<p style="color:var(--muted);text-align:center;margin-top:30px;">No tracks found.</p>`;
+      return list.map(s => {
+        const idx = songs.findIndex(x => x.id === s.id);
+        return `
+          <div class="song-item ${idx === currentIndex ? 'playing' : ''}" onclick="playSong(${idx})">
+            <div class="song-art">🎵</div>
+            <div class="song-meta">
+              <div class="song-title">${s.title}</div>
+              <div class="song-artist">${s.artist}</div>
+            </div>
+            <div class="song-actions" onclick="event.stopPropagation()">
+              <button class="icon-btn" style="font-size:1rem;" onclick="addToPlaylist('${s.id}')">➕</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function render() {
+      const container = document.getElementById('appContent');
+      const filtered = searchQuery ? songs.filter(s => s.title.toLowerCase().includes(searchQuery)) : songs;
+
+      if (searchQuery) {
+        container.innerHTML = `<div class="section-header"><span class="section-title">SEARCH RESULTS (${filtered.length})</span></div>` + renderSongList(filtered);
+        return;
+      }
+
+      if (currentTab === 'home') {
+        const favs = songs.filter(s => favorites.includes(s.id));
+        container.innerHTML = `
+          <div class="hero-card">
+            <h3>🎵 Welcome to Zaid Player</h3>
+            <p>Load your offline music library instantly with full equalizer, bass booster, and playlist management.</p>
+            <button class="btn-primary" onclick="document.getElementById('fileInput').click()">📁 Import Music Files</button>
+          </div>
+
+          <div class="grid-2">
+            <div class="tile" onclick="openModal('eqModal')">
+              <div class="tile-icon">🎚️</div>
+              <div class="tile-title">Equalizer</div>
+              <div class="tile-sub">5-Band & Boost</div>
+            </div>
+            <div class="tile" onclick="shufflePlayAll()">
+              <div class="tile-icon">🔀</div>
+              <div class="tile-title">Shuffle All</div>
+              <div class="tile-sub">${songs.length} Tracks</div>
+            </div>
+          </div>
+
+          <div class="section-header"><span class="section-title">LIBRARY (${songs.length})</span></div>
+          ${renderSongList(songs)}
+        `;
+      } else if (currentTab === 'songs') {
+        container.innerHTML = `
+          <div class="section-header">
+            <span class="section-title">ALL SONGS (${songs.length})</span>
+            <button class="btn-primary" style="padding:6px 12px;font-size:0.75rem;" onclick="shufflePlayAll()">🔀 Shuffle</button>
+          </div>
+          ${renderSongList(songs)}
+        `;
+      } else if (currentTab === 'playlists') {
+        const pKeys = Object.keys(playlists);
+        container.innerHTML = `
+          <div class="section-header">
+            <span class="section-title">PLAYLISTS</span>
+            <button class="btn-primary" style="padding:6px 12px;font-size:0.75rem;" onclick="createPlaylist()">+ New</button>
+          </div>
+          ${pKeys.map(pk => `
+            <div class="group-item" onclick="openPlaylist('${pk}')">
+              <div>
+                <div style="font-weight:700;">📑 ${pk}</div>
+                <div style="font-size:0.75rem;color:var(--muted);">${playlists[pk].length} songs</div>
+              </div>
+              <span>›</span>
+            </div>
+          `).join('')}
+        `;
+      } else if (currentTab === 'favorites') {
+        const favSongs = songs.filter(s => favorites.includes(s.id));
+        container.innerHTML = `
+          <div class="section-header"><span class="section-title">FAVORITES (${favSongs.length})</span></div>
+          ${renderSongList(favSongs)}
+        `;
+      }
+    }
+
+    function openPlaylist(name) {
+      const ids = playlists[name] || [];
+      const list = songs.filter(s => ids.includes(s.id));
+      document.getElementById('appContent').innerHTML = `
+        <div class="section-header">
+          <button class="btn-secondary" style="padding:4px 10px;font-size:0.75rem;" onclick="render()">← Back</button>
+          <span class="section-title">${name}</span>
+        </div>
+        ${renderSongList(list)}
+      `;
+    }
+
+    const savedTheme = localStorage.getItem('zp_theme');
+    if (savedTheme) document.body.className = savedTheme;
+    render();
+  </script>
+</body>
+</html>
