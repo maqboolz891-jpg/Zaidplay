@@ -17,30 +17,131 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-
-      - name: Install Cordova Globally
-        run: npm install -g cordova@12.0.0
-
-      - name: Create Project and Setup Platform
+      - name: Create Android Web Wrapper Structure
         run: |
-          cordova create myapp com.zaheer.player ZaheerPlayer
-          cd myapp
-          rm -rf www/*
-          cp -r ../www/* www/
-          npm i --save cordova-android@12.0.0
-          cordova platform add android --nosave
+          mkdir -p android-app/app/src/main/assets/www
+          mkdir -p android-app/app/src/main/res/mipmap-hdpi
+          
+          # Copy your web app files
+          cp -r www/* android-app/app/src/main/assets/www/
 
-      - name: Build Debug APK
+          # Create AndroidManifest.xml
+          cat << 'EOF' > android-app/app/src/main/AndroidManifest.xml
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+              package="com.zaid.player">
+              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+              <application
+                  android:allowBackup="true"
+                  android:icon="@mipmap/ic_launcher"
+                  android:label="Zaid Player"
+                  android:roundIcon="@mipmap/ic_launcher"
+                  android:usesCleartextTraffic="true">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          # Create MainActivity.java
+          mkdir -p android-app/app/src/main/java/com/zaid/player
+          cat << 'EOF' > android-app/app/src/main/java/com/zaid/player/MainActivity.java
+          package com.zaid.player;
+          import android.os.Bundle;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          import androidx.appcompat.app.AppCompatActivity;
+
+          public class MainActivity extends AppCompatActivity {
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  WebView webView = new WebView(this);
+                  WebSettings settings = webView.getSettings();
+                  settings.setJavaScriptEnabled(true);
+                  settings.setDomStorageEnabled(true);
+                  settings.setAllowFileAccess(true);
+                  settings.setAllowContentAccess(true);
+                  webView.setWebViewClient(new WebViewClient());
+                  webView.loadUrl("file:///android_asset/www/index.html");
+                  setContentView(webView);
+              }
+          }
+          EOF
+
+          # Create build.gradle for the app
+          cat << 'EOF' > android-app/app/build.gradle
+          plugins {
+              id 'com.android.application'
+          }
+          android {
+              namespace 'com.zaid.player'
+              compileSdk 34
+              defaultConfig {
+                  applicationId "com.zaid.player"
+                  minSdk 24
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0"
+              }
+              buildTypes {
+                release {
+                  minifyEnabled false
+                }
+              }
+          }
+          dependencies {
+              implementation 'androidx.appcompat:appcompat:1.6.1'
+          }
+          EOF
+
+          # Create project-level build.gradle
+          cat << 'EOF' > android-app/build.gradle
+          buildscript {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+              dependencies {
+                  classpath 'com.android.tools.build:gradle:8.1.0'
+              }
+          }
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          EOF
+
+          # Create settings.gradle
+          cat << 'EOF' > android-app/settings.gradle
+          rootProject.name = "ZaidPlayer"
+          include ':app'
+          EOF
+
+          # Create gradle.properties
+          cat << 'EOF' > android-app/gradle.properties
+          android.useAndroidX=true
+          android.enableJetifier=true
+          EOF
+
+      - name: Build APK with Gradle
         run: |
-          cd myapp
-          cordova build android --debug
+          cd android-app
+          chmod +x gradlew || true
+          gradle wrapper
+          ./gradlew assembleDebug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Zaheer-Player
-          path: myapp/platforms/android/app/build/outputs/apk/debug/app-debug.apk
+          name: Zaid-Player
+          path: android-app/app/build/outputs/apk/debug/app-debug.apk
+          
